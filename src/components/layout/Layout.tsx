@@ -1,4 +1,4 @@
-import { House, LayoutDashboard, ClipboardList, Settings, LogOut } from "lucide-react";
+import { House, LayoutDashboard, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
@@ -61,9 +61,8 @@ function NavItem({
   return (
     <div
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer ${
-        active ? "bg-amber-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
-      }`}
+      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer ${active ? "bg-amber-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+        }`}
     >
       {icon}
       <span className="font-medium">{label}</span>

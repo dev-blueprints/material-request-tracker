@@ -1,9 +1,8 @@
 import { supabase } from '@/lib/supabase';
-import type {  RequestStatus } from '@/types/database';
+import type { RequestStatus } from '@/types/database';
 
 export const materialService = {
-  
-    // fetch all material requests with optional status filter
+
   async getRequests(statusFilter?: RequestStatus) {
     let query = supabase
       .from('material_requests')
@@ -19,7 +18,6 @@ export const materialService = {
     return data;
   },
 
-  //update material requests status
   async updateStatus(id: string, status: RequestStatus) {
     const { data, error } = await supabase
       .from('material_requests')
@@ -32,13 +30,12 @@ export const materialService = {
     return data;
   },
 
-// fetch all projects
   async getProjects() {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
       .order('name');
-    
+
     if (error) throw error;
     return data;
   }

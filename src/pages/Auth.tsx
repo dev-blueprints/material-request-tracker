@@ -25,7 +25,6 @@ export function AuthPage({ defaultMode = "login" }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  console.log("AuthPage defaultMode:", defaultMode, " mode:", mode);
 
   useEffect(() => {
     setMode(defaultMode);
@@ -34,7 +33,6 @@ export function AuthPage({ defaultMode = "login" }: AuthPageProps) {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    console.log("Auth mode:", mode);
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({

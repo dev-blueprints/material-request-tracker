@@ -8,7 +8,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // 1. Handle CORS Preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -18,7 +17,6 @@ serve(async (req) => {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     const openai = new OpenAI({ apiKey });
 
-    // 2. The "Intelligence" - System Prompt
     const systemPrompt = `
       You are a construction assistant. Extract material requests from the user's text.
       Return ONLY a valid JSON array of objects. 
@@ -35,9 +33,7 @@ serve(async (req) => {
       response_format: { type: "json_object" }, // Ensures valid JSON
     });
 
-    console.log("OpenAI response:", response.choices);
     const content = response.choices[0].message.content;
-    // OpenAI with json_object mode usually returns { "requests": [...] }
     const parsedData = JSON.parse(content || "{}");
     const result = parsedData.requests || parsedData;
 

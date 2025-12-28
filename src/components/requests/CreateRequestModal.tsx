@@ -6,9 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles, Plus, Loader2, Info, AlertCircle } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
-import { useProjects } from "@/hooks/useMaterialRequests"; // Custom hook from Phase 3
+import { useProjects } from "@/hooks/useMaterialRequests";
 
-// UI Components
 import {
   Dialog,
   DialogContent,
@@ -37,7 +36,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// 1. Define the Validation Schema
 const formSchema = z.object({
   material_name: z.string().min(2, "Material name is required"),
   quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0"),
@@ -59,9 +57,8 @@ export function CreateRequestModal() {
   const queryClient = useQueryClient();
   const { data: projects } = useProjects();
 
-  // 2. Initialize the Manual Form
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema as any),
     defaultValues: {
       material_name: "",
       quantity: 1,
@@ -72,7 +69,6 @@ export function CreateRequestModal() {
     },
   });
 
-  // 3. Handle Manual Form Submission
   const onSubmit = async (values: FormValues) => {
     setIsProcessing(true);
     try {
@@ -81,14 +77,13 @@ export function CreateRequestModal() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Handle raw values to ensure project_id is compatible with UUID or NULL
       const payload = {
         material_name: values.material_name,
         quantity: values.quantity,
         unit: values.unit,
         priority: values.priority,
         notes: values.notes,
-        project_id: values.project_id || null, // Convert empty string to null
+        project_id: values.project_id || null,
         requested_by: user.id,
         company_id: user.app_metadata.company_id || user.user_metadata.company_id,
         status: "pending",
@@ -107,7 +102,6 @@ export function CreateRequestModal() {
     }
   };
 
-  // 4. Handle AI Parsing Logic
   const handleAISubmit = async () => {
     if (!aiInput.trim()) return;
     setIsProcessing(true);
@@ -117,7 +111,6 @@ export function CreateRequestModal() {
       } = await supabase.auth.getUser();
       const companyId = user?.app_metadata.company_id || user?.user_metadata.company_id;
 
-      // Call Supabase Edge Function
       const { data: parsedItems, error: aiError } = await supabase.functions.invoke(
         "parse-request",
         {
@@ -127,20 +120,17 @@ export function CreateRequestModal() {
 
       if (aiError) throw aiError;
 
-      let rawMaterials = null;
+      let rawMaterials: any[] | null = null;
 
       if (Array.isArray(parsedItems)) {
-        // Case 1: Direct array of materials (heuristic: check for material_name)
         if (parsedItems.length > 0 && parsedItems[0]?.material_name) {
           rawMaterials = parsedItems;
         } else if (parsedItems.length > 0) {
-          // Case 2: Array wrapping an object with the list
           rawMaterials = parsedItems[0].material_requests || parsedItems[0].materials;
         } else {
           rawMaterials = [];
         }
       } else {
-        // Case 3: Single object response
         rawMaterials = parsedItems?.material_requests || parsedItems?.materials;
       }
 
@@ -157,13 +147,11 @@ export function CreateRequestModal() {
         requested_by: user?.id,
         company_id: companyId,
         status: "pending",
-        project_id: null, // Or handle project selection logic here
+        project_id: null,
       }));
 
-      console.log("Final payload being sent to DB:", requestsToInsert);
 
-      // Bulk Insert Parsed Items
-      const { error: dbError } = await supabase.from("material_requests").insert(requestsToInsert); // This is now a flat array of row objects
+      const { error: dbError } = await supabase.from("material_requests").insert(requestsToInsert);
 
       if (dbError) throw dbError;
       finalizeSubmission();
@@ -256,12 +244,11 @@ export function CreateRequestModal() {
             </Button>
           </TabsContent>
 
-          {/* MANUAL TAB CONTENT */}
           <TabsContent value="manual" className="pt-4">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
-                  control={form.control}
+                  control={form.control as any}
                   name="project_id"
                   render={({ field }) => (
                     <FormItem>
@@ -287,7 +274,7 @@ export function CreateRequestModal() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
-                    control={form.control}
+                    control={form.control as any}
                     name="material_name"
                     render={({ field }) => (
                       <FormItem className="col-span-2">
@@ -300,7 +287,7 @@ export function CreateRequestModal() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={form.control as any}
                     name="quantity"
                     render={({ field }) => (
                       <FormItem>
@@ -313,7 +300,7 @@ export function CreateRequestModal() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={form.control as any}
                     name="unit"
                     render={({ field }) => (
                       <FormItem>
@@ -328,7 +315,7 @@ export function CreateRequestModal() {
                 </div>
 
                 <FormField
-                  control={form.control}
+                  control={form.control as any}
                   name="priority"
                   render={({ field }) => (
                     <FormItem>

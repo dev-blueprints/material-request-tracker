@@ -34,12 +34,9 @@ export function MaterialRequestList() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      console.log("Full User Metadata:", user?.user_metadata);
-      console.log("Full App Metadata:", user?.app_metadata);
-      console.log(
-        "Company ID in Token:",
-        user?.user_metadata?.company_id || user?.app_metadata?.company_id
-      );
+
+
+
     };
     checkUser();
   }, []);
@@ -64,7 +61,6 @@ export function MaterialRequestList() {
       alert("No data available to export");
       return;
     }
-    // Call the utility function we created
     exportRequestsToCSV(requests, "material_requests_report");
   };
 
@@ -131,9 +127,8 @@ export function MaterialRequestList() {
                   </TableCell>
                   <TableCell>
                     <span
-                      className={`text-xs font-bold uppercase ${
-                        req.priority === "urgent" ? "text-red-600" : "text-slate-400"
-                      }`}
+                      className={`text-xs font-bold uppercase ${req.priority === "urgent" ? "text-red-600" : "text-slate-400"
+                        }`}
                     >
                       {req.priority}
                     </span>

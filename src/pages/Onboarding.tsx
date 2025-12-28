@@ -13,32 +13,25 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
 
-  // Form States
   const [companyName, setCompanyName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [projectName, setProjectName] = useState("");
 
-  // Temporary storage during wizard
   const [tempCompanyId, setTempCompanyId] = useState<string | null>(null);
 
-  // Helper: Finalize everything
   const finalizeOnboarding = async (companyId: string) => {
     setLoading(true);
     try {
-      // 1. Update the user's metadata so RLS works globally
       const { error } = await supabase.auth.updateUser({
         data: { company_id: companyId },
       });
       if (error) throw error;
 
-      // 2. Force token refresh to ensure claims are updated in the JWT
       const { error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError) throw refreshError;
 
-      // 3. Invalidate projects query to ensure we fetch with the new token
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
 
-      // 4. Trigger the App.tsx refresh
       onComplete();
     } catch (err: any) {
       alert(err.message);
@@ -47,7 +40,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  // Logic: Create New Company
   const handleCreateOrg = async () => {
     setLoading(true);
     try {
@@ -61,7 +53,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       if (error) throw error;
 
       setTempCompanyId(data.id);
-      setStep("project"); // Move to Project Step
+      setStep("project");
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -69,7 +61,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  // Logic: Create Initial Project
   const handleCreateProject = async () => {
     if (!tempCompanyId) return;
     setLoading(true);
@@ -90,7 +81,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  // Logic: Join Existing
   const handleJoinOrg = async () => {
     setLoading(true);
     try {
@@ -102,7 +92,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
       if (error || !data) throw new Error("Invalid Invite Code");
 
-      // If joining, we skip project creation (team already has some)
       await finalizeOnboarding(data.id);
     } catch (err: any) {
       alert(err.message);
