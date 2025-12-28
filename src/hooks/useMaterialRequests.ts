@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { materialService } from '@/services/materialService';
-import { RequestStatus } from '@/types/database';
+import type { RequestStatus } from '@/types/database';
 
 export function useMaterialRequests(statusFilter?: RequestStatus) {
   return useQuery({

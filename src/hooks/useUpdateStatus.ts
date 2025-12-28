@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '@/services/materialService';
-import { MaterialRequest, RequestStatus } from '@/types/database';
+import type { MaterialRequest, RequestStatus } from '@/types/database';
 
 export function useUpdateStatus() {
   const queryClient = useQueryClient();

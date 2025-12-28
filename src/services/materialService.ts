@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import {  RequestStatus } from '@/types/database';
+import type {  RequestStatus } from '@/types/database';
 
 export const materialService = {
   

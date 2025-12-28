@@ -28,6 +28,13 @@ export function AuthPage({ defaultMode = "login" }: AuthPageProps) {
 
   useEffect(() => {
     setMode(defaultMode);
+    const sendReset = async () => {
+      await supabase.auth.resetPasswordForEmail("psaurav25@gmail.com", {
+        redirectTo: "https://sqkzxluvcjfbybykzcjh.supabase.co/reset-password",
+      });
+    };
+
+    sendReset();
   }, [defaultMode]);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -105,7 +112,7 @@ export function AuthPage({ defaultMode = "login" }: AuthPageProps) {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4 mt-4">
-            <Button type="submit" disabled={loading}>
+            <Button className="w-full" type="submit" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -117,6 +124,10 @@ export function AuthPage({ defaultMode = "login" }: AuthPageProps) {
                 "Create Account"
               )}
             </Button>
+
+            <Link to="/forgot-password" className="text-sm text-amber-600 hover:underline">
+              Forgot password?
+            </Link>
 
             <div className="text-center text-sm">
               <span className="text-slate-500">
