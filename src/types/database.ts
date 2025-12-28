@@ -1,13 +1,13 @@
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'fulfilled';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
-export type Unit = 'kg' | 'm' | 'pieces' | 'boxes';
+// export type Unit = 'kg' | 'm' | 'pieces' | 'boxes';
 
 export interface MaterialRequest {
   id: string;
   project_id: string | null;
   material_name: string;
   quantity: number;
-  unit: Unit;
+  unit: string;
   status: RequestStatus;
   priority: Priority;
   requested_by: string;

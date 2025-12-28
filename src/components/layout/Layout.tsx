@@ -22,8 +22,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <nav className="flex-1 p-4 space-y-2">
           <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={true} />
-          <NavItem icon={<ClipboardList size={20} />} label="Requests" active={false} />
-          <NavItem icon={<Settings size={20} />} label="Settings" active={false} />
           <NavItem
             icon={<LogOut size={20} />}
             label="Sign Out"

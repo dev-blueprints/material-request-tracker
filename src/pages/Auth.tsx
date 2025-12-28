@@ -25,32 +25,22 @@ export function AuthPage({ defaultMode = "login" }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  console.log("AuthPage defaultMode:", defaultMode, " mode:", mode);
 
   useEffect(() => {
     setMode(defaultMode);
-    const sendReset = async () => {
-      await supabase.auth.resetPasswordForEmail("psaurav25@gmail.com", {
-        redirectTo: "https://sqkzxluvcjfbybykzcjh.supabase.co/reset-password",
-      });
-    };
-
-    sendReset();
   }, [defaultMode]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    console.log("Auth mode:", mode);
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              company_id: "550e8400-e29b-41d4-a716-446655440000",
-              full_name: "New User",
-            },
-          },
+          options: {},
         });
         if (error) throw error;
       } else {

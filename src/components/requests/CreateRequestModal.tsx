@@ -1,27 +1,112 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { Sparkles, Plus, Loader2, Info } from "lucide-react";
+
+import { supabase } from "@/lib/supabase";
+import { useProjects } from "@/hooks/useMaterialRequests"; // Custom hook from Phase 3
+
+// UI Components
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Plus } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { useQueryClient } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+// 1. Define the Validation Schema
+const formSchema = z.object({
+  material_name: z.string().min(2, "Material name is required"),
+  quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0"),
+  unit: z.string().min(1, "Unit is required"),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  project_id: "",
+  notes: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 export function CreateRequestModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("manual");
   const [aiInput, setAiInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const queryClient = useQueryClient();
 
-  const handleAISubmit = async () => {
+  const queryClient = useQueryClient();
+  const { data: projects } = useProjects();
+
+  // 2. Initialize the Manual Form
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      material_name: "",
+      quantity: 1,
+      unit: "pcs",
+      priority: "medium",
+      notes: "",
+    },
+  });
+
+  // 3. Handle Manual Form Submission
+  const onSubmit = async (values: FormValues) => {
     setIsProcessing(true);
     try {
-      // 1. Call the AI Edge Function
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from("material_requests").insert({
+        ...values,
+        requested_by: user.id,
+        company_id: user.app_metadata.company_id || user.user_metadata.company_id,
+        status: "pending",
+      });
+
+      if (error) throw error;
+
+      finalizeSubmission();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // 4. Handle AI Parsing Logic
+  const handleAISubmit = async () => {
+    if (!aiInput.trim()) return;
+    setIsProcessing(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const companyId = user?.app_metadata.company_id || user?.user_metadata.company_id;
+
+      // Call Supabase Edge Function
       const { data: parsedItems, error: aiError } = await supabase.functions.invoke(
         "parse-request",
         {
@@ -31,85 +116,201 @@ export function CreateRequestModal() {
 
       if (aiError) throw aiError;
 
-      // 2. FETCH USER ONCE (Optimized)
-      // We get the user ID here so we don't have to 'await' inside the loop
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found");
+      const rawMaterials = Array.isArray(parsedItems)
+        ? parsedItems[0].materials
+        : parsedItems.materials;
 
-      // 3. Prepare the data for insertion
-      const requestsToInsert = parsedItems.map((item: any) => ({
-        ...item,
-        company_id: user.app_metadata.company_id || user.user_metadata.company_id,
-        requested_by: user.id,
+      if (!rawMaterials || !Array.isArray(rawMaterials)) {
+        throw new Error("AI returned data in an unexpected format");
+      }
+
+      const requestsToInsert = rawMaterials.map((item: any) => ({
+        material_name: item.material_name,
+        quantity: item.quantity,
+        unit: item.unit || "pcs",
+        priority: item.priority || "medium",
+        requested_by: user?.id,
+        company_id: companyId,
         status: "pending",
-        requested_at: new Date().toISOString(),
+        project_id: null, // Or handle project selection logic here
       }));
 
-      // 4. Insert into Database
-      const { error: dbError } = await supabase.from("material_requests").insert(requestsToInsert);
+      console.log("Final payload being sent to DB:", requestsToInsert);
+
+      // Bulk Insert Parsed Items
+      const { error: dbError } = await supabase.from("material_requests").insert(requestsToInsert); // This is now a flat array of row objects
 
       if (dbError) throw dbError;
-
-      // Success Handling
-      queryClient.invalidateQueries({ queryKey: ["material_requests"] });
-      setIsOpen(false);
-      setAiInput("");
-      alert("Requests added successfully!");
+      finalizeSubmission();
     } catch (err: any) {
-      console.error("Error details:", err);
-      alert(err.message || "An error occurred");
+      alert("AI was unable to parse. Try manual entry.");
+      setActiveTab("manual");
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const finalizeSubmission = () => {
+    queryClient.invalidateQueries({ queryKey: ["material_requests"] });
+    setIsOpen(false);
+    form.reset();
+    setAiInput("");
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-amber-600 hover:bg-amber-700">
+        <Button className="bg-slate-900 hover:bg-slate-800 text-white">
           <Plus className="w-4 h-4 mr-2" /> New Request
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>Add Material Request</DialogTitle>
+          <DialogTitle>Create Material Request</DialogTitle>
+          <DialogDescription>
+            Use AI to parse a note or fill out the form manually.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
-            <div className="flex items-center gap-2 mb-2 text-amber-800 font-medium text-sm">
-              <Sparkles className="w-4 h-4" /> AI Quick-Add
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+            <TabsTrigger value="ai" className="gap-2">
+              <Sparkles className="w-3 h-3 text-amber-500" /> AI Quick-Add
+            </TabsTrigger>
+          </TabsList>
+
+          {/* AI TAB CONTENT */}
+          <TabsContent value="ai" className="space-y-4 pt-4">
+            <div className="bg-amber-50 p-3 rounded-md border border-amber-100 flex gap-2 text-xs text-amber-800">
+              <Info className="w-4 h-4 shrink-0" />
+              <p>
+                Paste your site notes here. The AI will extract items, quantities, and priority
+                automatically.
+              </p>
             </div>
             <Textarea
-              placeholder="e.g., 'Need 20 bags of cement and 5 rolls of wire for the foundation. Urgent.'"
+              placeholder="Example: 'I need 50 bags of concrete and 20kg of rebar for the Foundation project by tomorrow morning. Urgent.'"
               value={aiInput}
               onChange={(e) => setAiInput(e.target.value)}
-              className="bg-white border-amber-200 focus-visible:ring-amber-500"
+              className="min-h-[120px] focus-visible:ring-amber-500"
             />
             <Button
-              className="w-full mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
               onClick={handleAISubmit}
               disabled={isProcessing || !aiInput}
             >
-              {isProcessing ? "Analyzing..." : "Process with AI"}
+              {isProcessing ? (
+                <Loader2 className="animate-spin mr-2" />
+              ) : (
+                <Sparkles className="mr-2 w-4 h-4" />
+              )}
+              Analyze & Add Items
             </Button>
-          </div>
+          </TabsContent>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-slate-500">Or Manual Entry</span>
-            </div>
-          </div>
+          {/* MANUAL TAB CONTENT */}
+          <TabsContent value="manual" className="pt-4">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="project_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a project" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {projects?.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          <Button variant="outline" className="w-full">
-            Open Standard Form
-          </Button>
-        </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="material_name"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Material Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Portland Cement" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantity</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="unit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unit</FormLabel>
+                        <FormControl>
+                          <Input placeholder="kg, bags, m3..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority Level</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button type="submit" className="w-full bg-slate-900" disabled={isProcessing}>
+                  {isProcessing ? <Loader2 className="animate-spin mr-2" /> : "Submit Request"}
+                </Button>
+              </form>
+            </Form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

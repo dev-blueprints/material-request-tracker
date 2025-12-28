@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/select";
 import type { RequestStatus } from "@/types/database";
 import { CreateRequestModal } from "@/components/requests/CreateRequestModal";
-import { Loader2, Filter } from "lucide-react";
+import { Download, Loader2, Filter } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { exportRequestsToCSV } from "../lib/utils";
 
 export function MaterialRequestList() {
   const [filter, setFilter] = useState<RequestStatus | "all">("all");
@@ -58,6 +59,15 @@ export function MaterialRequestList() {
     }
   };
 
+  const handleExport = () => {
+    if (!requests || requests.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+    // Call the utility function we created
+    exportRequestsToCSV(requests, "material_requests_report");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -75,6 +85,16 @@ export function MaterialRequestList() {
             </SelectContent>
           </Select>
         </div>
+
+        <Button
+          variant="default"
+          onClick={handleExport}
+          disabled={isLoading || !requests?.length}
+          className="flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          <span>Export CSV</span>
+        </Button>
 
         {/* Modal for creating new requests (including AI Twist) */}
         <CreateRequestModal />
