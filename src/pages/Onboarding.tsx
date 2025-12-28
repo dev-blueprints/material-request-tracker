@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Building2, Users, Loader2, ArrowRight, HardHat } from "lucide-react";
+import { Users, Loader2, ArrowRight, HardHat } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState<"org" | "project">("org");
   const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
   // Form States
   const [companyName, setCompanyName] = useState("");
@@ -29,7 +31,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       });
       if (error) throw error;
 
-      // 2. Trigger the App.tsx refresh
+      // 2. Force token refresh to ensure claims are updated in the JWT
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) throw refreshError;
+
+      // 3. Invalidate projects query to ensure we fetch with the new token
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+
+      // 4. Trigger the App.tsx refresh
       onComplete();
     } catch (err: any) {
       alert(err.message);

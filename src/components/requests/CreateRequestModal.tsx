@@ -43,7 +43,7 @@ const formSchema = z.object({
   quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0"),
   unit: z.string().min(1, "Unit is required"),
   priority: z.enum(["low", "medium", "high", "urgent"]),
-  project_id: "",
+  project_id: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -67,6 +67,7 @@ export function CreateRequestModal() {
       unit: "pcs",
       priority: "medium",
       notes: "",
+      project_id: "",
     },
   });
 
@@ -79,12 +80,20 @@ export function CreateRequestModal() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("material_requests").insert({
-        ...values,
+      // Handle raw values to ensure project_id is compatible with UUID or NULL
+      const payload = {
+        material_name: values.material_name,
+        quantity: values.quantity,
+        unit: values.unit,
+        priority: values.priority,
+        notes: values.notes,
+        project_id: values.project_id || null, // Convert empty string to null
         requested_by: user.id,
         company_id: user.app_metadata.company_id || user.user_metadata.company_id,
         status: "pending",
-      });
+      };
+
+      const { error } = await supabase.from("material_requests").insert(payload);
 
       if (error) throw error;
 
@@ -116,11 +125,25 @@ export function CreateRequestModal() {
 
       if (aiError) throw aiError;
 
-      const rawMaterials = Array.isArray(parsedItems)
-        ? parsedItems[0].materials
-        : parsedItems.materials;
+      let rawMaterials = null;
+
+      if (Array.isArray(parsedItems)) {
+        // Case 1: Direct array of materials (heuristic: check for material_name)
+        if (parsedItems.length > 0 && parsedItems[0]?.material_name) {
+          rawMaterials = parsedItems;
+        } else if (parsedItems.length > 0) {
+          // Case 2: Array wrapping an object with the list
+          rawMaterials = parsedItems[0].material_requests || parsedItems[0].materials;
+        } else {
+          rawMaterials = [];
+        }
+      } else {
+        // Case 3: Single object response
+        rawMaterials = parsedItems?.material_requests || parsedItems?.materials;
+      }
 
       if (!rawMaterials || !Array.isArray(rawMaterials)) {
+        console.error("Unexpected AI response format:", parsedItems);
         throw new Error("AI returned data in an unexpected format");
       }
 
