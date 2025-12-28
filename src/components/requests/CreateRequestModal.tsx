@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { Sparkles, Plus, Loader2, Info } from "lucide-react";
+import { Sparkles, Plus, Loader2, Info, AlertCircle } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
 import { useProjects } from "@/hooks/useMaterialRequests"; // Custom hook from Phase 3
@@ -54,6 +54,7 @@ export function CreateRequestModal() {
   const [activeTab, setActiveTab] = useState("manual");
   const [aiInput, setAiInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const { data: projects } = useProjects();
@@ -99,7 +100,8 @@ export function CreateRequestModal() {
 
       finalizeSubmission();
     } catch (err: any) {
-      alert(err.message);
+      console.error("Manual submission error:", err);
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setIsProcessing(false);
     }
@@ -166,7 +168,8 @@ export function CreateRequestModal() {
       if (dbError) throw dbError;
       finalizeSubmission();
     } catch (err: any) {
-      alert("AI was unable to parse. Try manual entry.");
+      console.error("AI submission error:", err);
+      setError("AI was unable to parse the request. Please try manual entry or check your input.");
       setActiveTab("manual");
     } finally {
       setIsProcessing(false);
@@ -178,10 +181,17 @@ export function CreateRequestModal() {
     setIsOpen(false);
     form.reset();
     setAiInput("");
+    setError(null);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(val: boolean) => {
+        setIsOpen(val);
+        if (!val) setError(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button className="bg-slate-900 hover:bg-slate-800 text-white">
           <Plus className="w-4 h-4 mr-2" /> New Request
@@ -195,7 +205,21 @@ export function CreateRequestModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-start gap-2 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p>{error}</p>
+          </div>
+        )}
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(val: string) => {
+            setActiveTab(val);
+            setError(null);
+          }}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="manual">Manual Entry</TabsTrigger>
             <TabsTrigger value="ai" className="gap-2">
