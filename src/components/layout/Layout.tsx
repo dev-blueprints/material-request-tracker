@@ -1,6 +1,16 @@
-import { House, LayoutDashboard, ClipboardList, Settings } from "lucide-react";
+import { House, LayoutDashboard, ClipboardList, Settings, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut({ scope: "local" });
+
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div className="flex h-screen bg-slate-50">
       {/* Sidebar */}
@@ -11,9 +21,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={false} />
-          <NavItem icon={<ClipboardList size={20} />} label="Requests" active={true} />
+          <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={true} />
+          <NavItem icon={<ClipboardList size={20} />} label="Requests" active={false} />
           <NavItem icon={<Settings size={20} />} label="Settings" active={false} />
+          <NavItem
+            icon={<LogOut size={20} />}
+            label="Sign Out"
+            active={false}
+            onClick={handleSignOut}
+          />
         </nav>
       </aside>
 
@@ -37,13 +53,16 @@ function NavItem({
   icon,
   label,
   active,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   active: boolean;
+  onClick?: () => void;
 }) {
   return (
     <div
+      onClick={onClick}
       className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer ${
         active ? "bg-amber-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
       }`}
